@@ -1,0 +1,167 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop, 'feature/*' ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # 前端测试
+  frontend-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: Generate/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./Generate
+      run: npm ci
+    
+    - name: Run ESLint
+      working-directory: ./Generate
+      run: npm run lint
+    
+    - name: Run unit tests
+      working-directory: ./Generate
+      run: npm test -- --coverage
+    
+    - name: Run E2E tests
+      working-directory: ./Generate
+      run: npm run test:e2e
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./Generate/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+
+  # 后端测试
+  backend-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: fabrica-backend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./fabrica-backend
+      run: npm ci
+    
+    - name: Run ESLint
+      working-directory: ./fabrica-backend
+      run: npm run lint
+    
+    - name: Run database migrations
+      working-directory: ./fabrica-backend
+      run: npm run migrate
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        REDIS_URL: redis://localhost:6379
+        NODE_ENV: test
+    
+    - name: Run unit tests
+      working-directory: ./fabrica-backend
+      run: npm test -- --coverage
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        REDIS_URL: redis://localhost:6379
+        NODE_ENV: test
+        JWT_SECRET: test_secret
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./fabrica-backend/coverage/lcov.info
+        flags: backend
+        name: backend-coverage
+
+  # 集成测试
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build with Docker Compose
+      run: docker-compose -f docker-compose.test.yml build
+    
+    - name: Run integration tests
+      run: docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+    
+    - name: Cleanup
+      run: docker-compose -f docker-compose.test.yml down -v
+
+  # 性能测试
+  performance-tests:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Install Artillery
+      run: npm install -g artillery@latest
+    
+    - name: Start application
+      run: |
+        docker-compose up -d
+        sleep 30
+    
+    - name: Run performance tests
+      run: artillery run performance/artillery.yml
+    
+    - name: Cleanup
+      run: docker-compose down
