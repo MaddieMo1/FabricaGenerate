@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # 测试数据库
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=fabrica_test
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./fabrica-backend/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - test-network
+
+  # 测试Redis
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - test-network
+
+  # 后端测试服务
+  backend-test:
+    build:
+      context: ./fabrica-backend
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgresql://test_user:test_password@postgres-test:5432/fabrica_test
+      - REDIS_URL=redis://redis-test:6379
+      - JWT_SECRET=test_jwt_secret
+      - FILE_UPLOAD_PATH=/tmp/test-uploads
+    volumes:
+      - ./fabrica-backend:/app
+      - /app/node_modules
+    networks:
+      - test-network
+    depends_on:
+      - postgres-test
+      - redis-test
+    command: npm test
+
+  # 前端测试服务
+  frontend-test:
+    build:
+      context: ./Generate
+      dockerfile: Dockerfile
+      target: test
+    volumes:
+      - ./Generate:/app
+      - /app/node_modules
+    networks:
+      - test-network
+    command: npm test
+
+networks:
+  test-network:
+    driver: bridge
