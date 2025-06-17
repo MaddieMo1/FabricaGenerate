@@ -1,0 +1,132 @@
+# FabricaGenerate 性能测试配置
+# 用于测试API和应用程序的性能
+
+config:
+  # 测试目标
+  target: 'http://localhost:3001'
+  
+  # 测试阶段配置
+  phases:
+    # 预热阶段
+    - duration: 60
+      arrivalRate: 5
+      name: "预热阶段"
+    
+    # 负载递增阶段
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 50
+      name: "负载递增阶段"
+    
+    # 高负载维持阶段
+    - duration: 300
+      arrivalRate: 50
+      name: "高负载维持阶段"
+    
+    # 负载递减阶段
+    - duration: 60
+      arrivalRate: 50
+      rampTo: 5
+      name: "负载递减阶段"
+  
+  # 处理器配置
+  processor: "./artillery-processor.js"
+  
+  # 变量定义
+  variables:
+    testUser:
+      - "user1@test.com"
+      - "user2@test.com"
+      - "user3@test.com"
+    
+  # 插件配置
+  plugins:
+    metrics-by-endpoint:
+      useOnlyRequestNames: true
+    
+  # HTTP配置
+  http:
+    timeout: 30
+    pool: 50
+
+# 测试场景
+scenarios:
+  # 用户注册和登录测试
+  - name: "用户认证流程"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            email: "{{ $randomEmail() }}"
+            password: "testPassword123"
+            username: "{{ $randomString() }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ testUser }}"
+            password: "testPassword123"
+          capture:
+            - json: "$.token"
+              as: "loginToken"
+  
+  # 文件上传测试
+  - name: "文件上传流程"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ testUser }}"
+            password: "testPassword123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      
+      - post:
+          url: "/api/files/upload"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          formData:
+            file: "@./test-files/sample.obj"
+            description: "Performance test upload"
+          capture:
+            - json: "$.fileId"
+              as: "uploadedFileId"
+  
+  # 3D模型查看测试
+  - name: "3D模型查看"
+    weight: 25
+    flow:
+      - get:
+          url: "/api/files/{{ uploadedFileId }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      
+      - get:
+          url: "/api/files/{{ uploadedFileId }}/preview"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+  
+  # API浏览测试
+  - name: "API浏览"
+    weight: 25
+    flow:
+      - get:
+          url: "/api/files"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      
+      - get:
+          url: "/api/users/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      
+      - get:
+          url: "/api/gallery"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
