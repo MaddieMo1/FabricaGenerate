@@ -1,0 +1,129 @@
+# Trivy 安全扫描配置
+# 用于容器镜像和文件系统的安全漏洞扫描
+
+# 全局配置
+global:
+  # 缓存目录
+  cache-dir: ".trivy-cache"
+  # 调试模式
+  debug: false
+  # 静默模式
+  quiet: false
+  # 超时时间（秒）
+  timeout: 300
+  # 跳过数据库更新
+  skip-update: false
+  # 离线模式
+  offline-scan: false
+
+# 扫描配置
+scan:
+  # 扫描类型：vuln（漏洞）, config（配置）, secret（密钥）, license（许可证）
+  scanners:
+    - vuln
+    - config
+    - secret
+    - license
+  
+  # 漏洞严重性过滤
+  severity:
+    - UNKNOWN
+    - LOW
+    - MEDIUM
+    - HIGH
+    - CRITICAL
+  
+  # 忽略未修复的漏洞
+  ignore-unfixed: false
+  
+  # 退出代码（发现漏洞时）
+  exit-code: 1
+  
+  # 跳过的目录
+  skip-dirs:
+    - node_modules
+    - .git
+    - .trivy-cache
+    - dist
+    - build
+  
+  # 跳过的文件
+  skip-files:
+    - "*.log"
+    - "*.tmp"
+    - "*.cache"
+
+# 输出配置
+output:
+  # 输出格式：table, json, sarif, template
+  format: json
+  # 输出文件
+  file: "trivy-report.json"
+  # 模板文件（当format为template时）
+  template: ""
+
+# 数据库配置
+db:
+  # 跳过数据库更新
+  skip-update: false
+  # 数据库仓库
+  repository: "ghcr.io/aquasecurity/trivy-db"
+  # 轻量级数据库
+  light: false
+
+# 缓存配置
+cache:
+  # 清除缓存
+  clear: false
+  # 缓存后端：fs, redis
+  backend: "fs"
+  # Redis配置（当backend为redis时）
+  redis:
+    ca: ""
+    cert: ""
+    key: ""
+    tls: false
+
+# 漏洞数据库配置
+vuln:
+  # 漏洞类型
+  type:
+    - os
+    - library
+  
+# 配置检查
+config:
+  # 配置文件类型
+  file-patterns:
+    - "*.yaml"
+    - "*.yml"
+    - "*.json"
+    - "Dockerfile"
+    - "docker-compose*.yml"
+  
+  # 策略文件
+  policy: ""
+  
+  # 数据目录
+  data: ""
+  
+  # 命名空间
+  namespaces:
+    - main
+    - builtin
+
+# 密钥检测
+secret:
+  # 配置文件
+  config: ""
+
+# 许可证检查
+license:
+  # 许可证类型
+  full: false
+  # 忽略的许可证
+  ignored:
+    - MIT
+    - Apache-2.0
+    - BSD-3-Clause
+    - ISC

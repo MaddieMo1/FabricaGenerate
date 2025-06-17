@@ -1,0 +1,66 @@
+# Snyk 安全配置文件
+# 用于配置 Snyk 的漏洞扫描和策略
+
+# 版本
+version: v1.0.0
+
+# 忽略的漏洞
+ignore:
+  # Node.js 依赖漏洞
+  'SNYK-JS-LODASH-567746':
+    - '*':
+        reason: 'Prototype pollution in lodash - dev dependency only'
+        expires: '2024-12-31T23:59:59.999Z'
+        created: '2024-01-01T00:00:00.000Z'
+  
+  'SNYK-JS-ANSIHTML-1296849':
+    - '*':
+        reason: 'Code injection in ansi-html - dev dependency only'
+        expires: '2024-12-31T23:59:59.999Z'
+        created: '2024-01-01T00:00:00.000Z'
+  
+  'SNYK-JS-PATHPARSE-1077067':
+    - '*':
+        reason: 'ReDoS in path-parse - low impact'
+        expires: '2024-12-31T23:59:59.999Z'
+        created: '2024-01-01T00:00:00.000Z'
+
+# 补丁配置
+patch:
+  # 自动应用补丁
+  auto: true
+  
+  # 补丁策略
+  strategy: 'update'
+
+# 语言设置
+language-settings:
+  javascript:
+    # 包管理器
+    packageManager: npm
+    # 开发依赖
+    includeDevDeps: false
+    # 严格的外部依赖
+    strictOutOfSync: true
+
+# 组织设置
+org: 'fabricagenerate'
+
+# 项目设置
+project-settings:
+  # 项目名称
+  name: 'FabricaGenerate'
+  # 项目标签
+  tags:
+    - production
+    - web-app
+    - 3d-models
+  
+  # 业务关键性
+  criticality: high
+  
+  # 环境
+  environment: production
+  
+  # 生命周期
+  lifecycle: production
